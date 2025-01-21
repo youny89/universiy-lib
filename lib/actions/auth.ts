@@ -9,12 +9,13 @@ import { signIn } from "@/auth";
 import { headers } from "next/headers";
 import ratelimit from "../ratelimit";
 import { redirect } from "next/navigation";
+import { workflowClient } from "../workflow";
+import { config } from "../config";
 
 export const signUp = async (params: AuthCredentials) => {
   const { name, email, password, universityId, universityCard } = params;
 
   const ip = (await headers()).get("x-forwarded-for") || "127.0.0.1";
-  console.log({ ip });
   const { success } = await ratelimit.limit(ip);
   if (!success) return redirect("/too-fast");
 
@@ -38,6 +39,15 @@ export const signUp = async (params: AuthCredentials) => {
       universiyId: universityId,
       universityCard,
     });
+
+    await workflowClient.trigger({
+      url: `${config.env.apiProductionEndpoint}/api/workflow/onboarding`,
+      body: {
+        email,
+        name,
+      },
+    });
+
     signInWithCredentials({ email, password });
     return { success: true };
   } catch (error) {
